@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raid Aventure</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
+  </head>
+  <body>
+    <style>
+      .classement{
+
+      }
+      .team{
+        padding:10px;
+        margin:10px 0px;
+        border-radius: 4px;
+      }
+      .place{
+        border:black 1px solid;
+        padding:5px;
+        background-color: white;
+        border-radius: 4px;
+      }
+      .team_name{
+        margin: 10px 0px 10px 5px;
+      }
+      .distance{
+        float: right;
+      }
+      .suivi-coureur{
+        float:right;
+        margin-left:10px;
+      }
+    </style>
+    <div class="container">
+      <div class="row">
+          <div id="map">
+
+          </div>
+        <div class="classement">
+          <div class="col-lg-12">
+            <h3>Classement</h3>
+            <div id="classement">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-1.12.0.min.js" charset="utf-8"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="js/script.js" charset="utf-8"></script>
+    <script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
+    <script src="//d3js.org/d3.v3.min.js" charset="utf-8"></script>
+    <script type="text/javascript">
+
+      $(document).ready(function(){
+        var map = new L.Map('map');
+        var basemapLayer = new L.TileLayer('http://{s}.tiles.mapbox.com/v3/github.map-xgq2svrz/{z}/{x}/{y}.png');
+        map.setView([48.734759, -3.538378 ], 14);
+        map.addLayer(basemapLayer);
+        var socket = io.connect('/');
+        var color = ["#ffB73f","#63AA75","#63Aae7"];
+        var marker = [];
+        var circuits = {
+          confirme :{
+            kayak : {},
+            velo : {},
+            running : {}
+          },
+          debutant : {
+            kayak : {},
+            velo : {},
+            running : {}
+          }
+        }
+        var circuits_name = { "kayak" : "kayak", "running" : "trail", "velo" : "vtt" }
+        var polyline = "";
+        var opacity_circuit = 0.5;
+        var lat2 =  0;
+        var lon2 = 0;
+        var lat1 = 0;
+        var lon1 = 0;
+        var vitesse_moyenne = 0;
+        var nb_valeur_vitesse = 0;
+        var distance_parcouru = 0;
+        //Gestion des socket
+        $.ajax({
+          url : "/api/circuits/true",
+          type : "GET",
+          success : function(datas){
+            if(datas.length > 0){
+              for(var index_circuit = 0; index_circuit < datas.length; index_circuit ++){
+                switch (datas[index_circuit].properties.part) {
+                  case circuits_name["kayak"]:
+                    var circuit = _.map(datas[index_circuit].geometry.coordinates, function(coordonnees){
+                      return new L.LatLng(coordonnees[1], coordonnees[0]);
+                    });
+                    circuits.confirme.kayak = new L.polyline(circuit , { color: datas[index_circuit].properties.color, opacity : opacity_circuit, smoothFactor: 5, weight : 3}).addTo(map);
+                    break;
+                  case circuits_name["velo"]:
+                    var circuit = _.map(datas[index_circuit].geometry.coordinates, function(coordonnees){
+                      return new L.LatLng(coordonnees[1], coordonnees[0]);
+                    });
+                    circuits.confirme.velo = new L.polyline(circuit , { color: datas[index_circuit].properties.color, opacity : opacity_circuit, smoothFactor: 5, weight : 3}).addTo(map);
+                    break;
+                  case circuits_name["running"]:
+                    var circuit = _.map(datas[index_circuit].geometry.coordinates, function(coordonnees){
+                      return new L.LatLng(coordonnees[1], coordonnees[0]);
+                    });
+                    circuits.confirme.running = new L.polyline(circuit , { color: datas[index_circuit].properties.color, opacity : opacity_circuit, smoothFactor: 5, weight : 3}).addTo(map);
+                    break;
+                }
+              }
+              $.ajax({
+                url : "/api/teams",
+                type : "GET",
+                success : function(datas_){
+                  var first_coordinates = [datas[0].geometry.coordinates[0][0], datas[0].geometry.coordinates[0][1]];
+                  if(datas_.length){
+                    for(var index = 0; index < datas_.length; index ++){
+                      var marker_ = L.marker([ first_coordinates[1] , first_coordinates[0] ])
+                      marker_.setIcon(new L.Icon(
+                        {
+                          iconUrl : './img/icon.svg/' + color[index%color.length].replace("#",""),
+                          iconSize : new L.point(20, 40),
+                          iconRetinaUrl : './img/icon.svg/' + color[index%color.length].replace("#",""),
+                          iconAnchor : [10,40]
+                        }
+                      ));
+                      marker_.addTo(map);
+                      var div = setTeamHTML(datas_[index].dev_id, index + 1, datas_[index].team.name, color[index%color.length]);
+                      marker.push({
+                          div : div,
+                          color : color[index%color.length],
+                          suivi : false,
+                          distance : datas_[index].distance,
+                          marker : marker_,
+                          team : datas_[index].team.name,
+                          dev_id : datas_[index].dev_id
+                      });
+                    };
+                    $(".suivi-coureur").on('click',function(){
+                      var dev_id = $(this).parent().attr('data-device');
+                      var marker_ = _.find(marker, function(m){
+                        return m.dev_id == dev_id;
+                      });
+                      if(marker_.suivi == false){
+                        _.each(marker,function(m){ m.suivi = false; });
+                        $(".suivi-coureur").removeClass('btn-danger');
+                        $(".suivi-coureur").addClass('btn-default');
+                        $(".suivi-coureur").html("Suivre");
+                        marker_.suivi = true;
+                        map.setView(marker_.marker.getLatLng());
+                        marker_.div.find('.suivi-coureur').removeClass('btn-default');
+                        marker_.div.find('.suivi-coureur').addClass('btn-danger');
+                        marker_.div.find('.suivi-coureur').html("Ne plus suivre");
+                      }else{
+                        marker_.suivi = false;
+                        marker_.div.find('.suivi-coureur').removeClass('btn-danger');
+                        marker_.div.find('.suivi-coureur').addClass('btn-default');
+                        marker_.div.find('.suivi-coureur').html("Suivre");
+                      }
+
+                    });
+                    /*var svg = d3.select("#map").select("svg"),
+                    g = svg.append("g");
+                    var positions = _.map(marker,function(marker__){
+                      return { LatLng :  marker__.marker.getLatLng(), color : marker__.color };
+                    });
+                    var feature = g.selectAll("circle")
+                    .data(positions)
+                    .enter().append("position")
+                    .on("click", function(d){
+                      alert(d)
+                    })
+                    .append("use").attr("xlink:href","#positionSVG");
+                    var svg  = document.getElementById('positionSVG'),
+                        xml  = new XMLSerializer().serializeToString(svg),
+                        data = "data:image/svg+xml;base64," + btoa(xml),
+                        img  = new Image()
+                    img.setAttribute('src', data)
+                    document.body.appendChild(img)*/
+                  }
+                }
+              });
+            }
+          }
+        });
+        socket.on("update",function(data){
+          var marker_ = _.find(marker, function(m){ return m.dev_id == data.dev_id});
+          if(marker_){
+            var lastlatlng = marker_.marker.getLatLng();
+            marker_.distance += getDistanceLatLng(data.position[0],data.position[1],lastlatlng.lat, lastlatlng.lng);
+            //teamSort(marker);
+            marker_.div.find(".distance").html((marker_.distance/1000000000).toFixed(2) + " km");
+            sort(marker);
+            marker_.marker.setLatLng([data.position[1], data.position[0]]);
+            console.log(data.position[1],data.position[0]);
+            if(marker_.suivi == true)
+              map.setView(new L.LatLng(data.position[1], data.position[0]));
+          }
+        })
+      });
+
+      function setTeamHTML(device_id, place, team_name, color){
+        var template = _.template($("#templateTeamClassement").html());
+        var data = { device_id : device_id, place: place, team_name : team_name, color : color };
+        var html = template(data);
+        $("#classement").append(html);
+        return $(".team[data-device='" + device_id + "']");
+      }
+
+      function sort(marker){
+        /*$("#classement .team").sortDomElements(function(a,b){
+          return TryParseInt($(a).find('.distance').html()) < TryParseInt($(b).find('.distance').html())
+        });*/
+        i = 0;
+        while(i < $("#classement .team").length){
+          var divsTeam = $("#classement .team");
+          //Si il y a un team derrière
+          if(divsTeam[i + 1]){
+            var distance1 = TryParseFloat($($("#classement .team")[i]).find(".distance").html().replace(" km",""));
+            var distance2 = TryParseFloat($($("#classement .team")[i+1]).find(".distance").first().html().replace(" km",""));
+            //Si la seconde distance (celle de la team derrière) est supérieure à la première, alors
+            if(distance2 > distance1){
+              //On insère la div2 avant la div1
+              $(divsTeam[i+1]).find('.place').html(TryParseFloat($(divsTeam[i+1]).find('.place').html())-1)
+              $(divsTeam[i]).find('.place').html(TryParseFloat($(divsTeam[i]).find('.place').html())+1)
+              $(divsTeam[i+1]).insertBefore($(divsTeam[i]));
+              //on recommence la boucle puisque la div2 a p-e sauté deux équipes ?!
+              i = 0;
+            //Sinon tout est normal et on continue la boucle
+            }else{
+              i ++;
+            }
+          //Sinon on incrémente et on sort de la boucle
+          }else{
+            i ++;
+          }
+        }
+      }
+
+      jQuery.fn.sortDomElements = (function() {
+        return function(comparator) {
+            return Array.prototype.sort.call(this, comparator).each(function(i) {
+                  this.parentNode.appendChild(this);
+            });
+        };
+      })();
+
+      function TryParseFloat(str) {
+        var retValue = 0;
+        if(str !== null) {
+          if(str.length > 0) {
+            if (!isNaN(str)) {
+              retValue = parseFloat(str);
+            }
+          }
+        }
+        return retValue;
+      }
+    </script>
+    <script type="template" id="templateTeamClassement">
+      <div class="team" data-device="<%= device_id %>" style="background-color:<%= color %>">
+        <span class="place"><%= place %></span>
+        <span class="team_name"><%= team_name %></span>
+        <a class="btn btn-xs btn-default suivi-coureur">Suivre</a>
+        <span class="distance">0 km</span>
+      </div>
+    </script>
+  </body>
+</html>

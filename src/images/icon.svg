@@ -1,0 +1,11 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 20010904//EN"
+ "http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd">
+ <svg id="positionSVG" xmlns="http://www.w3.org/2000/svg"
+ style="height:40px; width:20px;">
+  <g style="opacity: 1; fill: {{color}};">
+    <circle class="cloud1" cx="10" cy="10" r="10"></circle>
+    <polygon points="0.125,12 19.875,12 10,40"></polygon>
+  </g>
+  <circle cx="10" cy="10" r="5" style="fill: white; fill-opacity: 1;"></circle>
+</svg>

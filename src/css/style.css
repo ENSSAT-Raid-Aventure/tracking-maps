@@ -1,0 +1,18 @@
+#map{
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width:70%;
+}
+
+.classement{
+  position:absolute;
+  width: 30%;
+  right: 0;
+  top:0;
+  bottom:0;
+  box-sizing: border-box;
+  border-left: 5px solid black;
+  overflow-y: scroll;
+}
