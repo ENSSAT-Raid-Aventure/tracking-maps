@@ -3,7 +3,7 @@ var http = require('http');
 var url = require('url');
 var querystring = require('querystring');
 data = require('./js/back-end/data');
-d3 = require('d3');
+//d3 = require('d3');
 var app = require('express')();
 var bodyParser = require('body-parser')
 app.use(bodyParser.json() );       // to support JSON-encoded bodies

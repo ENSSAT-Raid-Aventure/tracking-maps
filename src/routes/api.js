@@ -3,6 +3,7 @@ module.exports = function (app) {
   var debutant = "debutant";
   var kayak = "kayak";
   var velo = "vtt";
+  var partCircuit = {"kayak" : "kayak", "velo": "vtt", "running" : "trail"}
   var running = "trail";
   var circuits = [];
   var databaseCollectionTrace = "trace";
@@ -20,7 +21,7 @@ module.exports = function (app) {
   data.findWhere(databaseCollectionCircuit,{}, function(error, datas){
     if(!error){
       circuits = datas;
-      point_depart = _.find(circuits, function(circuit){ return circuit.properties.part == kayak && circuit.properties.type == confirme}).geometry.coordinates[0];
+      point_depart = _.find(circuits, function(circuit){ return circuit.properties.part == partCircuit["kayak"] && circuit.properties.type == confirme}).geometry.coordinates[0];
     }
     //TODO : ELSE
 
@@ -212,7 +213,22 @@ module.exports = function (app) {
     }
   });
 
-  app.get("/api/circuit/kayak/:confirme",function(req,res){
+  app.get("/api/circuit/:circuit/:confirme",function(req,res){
+    if(partCircuit[req.params.circuit]){
+      if(req.params.confirme == "true"){
+        data.findWhere(databaseCollectionCircuit,{"properties.type" : (req.params.confirme ? confirme : debutant), "properties.part" : partCircuit[req.params.circuit]}, function(error, datas){
+          res.status(200).send(datas);
+        });
+      }
+      else{
+        data.findWhere(databaseCollectionCircuit,{ "properties.part" : partCircuit[req.params.circuit]}, function(error, datas){
+          res.status(200).send(datas);
+        });
+      }
+    }
+  });
+
+  /*app.get("/api/circuit/kayak/:confirme",function(req,res){
     if(req.params.confirme == "true"){
       data.findWhere(databaseCollectionCircuit,{"properties.type" : (req.params.confirme ? confirme : debutant), "properties.part" : kayak}, function(error, datas){
         res.status(200).send(datas);
@@ -249,7 +265,7 @@ module.exports = function (app) {
         res.status(200).send(datas);
       });
     }
-  });
+  });*/
 
   app.get("/first-coordinates",function(req,res){
     res.setHeader('Content-type','application/json');
